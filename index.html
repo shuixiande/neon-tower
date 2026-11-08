@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>萌宠公寓 · 叠叠塔</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='4' fill='%23ffe9d5'/><rect x='3' y='9' width='10' height='3' rx='1' fill='%23ffb59b'/><rect x='4' y='5' width='8' height='3' rx='1' fill='%23ffd9a0'/></svg>">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; overflow: hidden; background: #fff7ec; touch-action: none; -webkit-user-select: none; user-select: none;
+         font-family: "PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif; }
+
+  /* 两套画风皮肤，用 CSS 变量切换，玩法代码不动 */
+  body.cozy {
+    --panel-bg: rgba(255,251,242,.95); --panel-border: 3px dashed #e6c6a5;
+    --ink: #6b5442; --ink-soft: #9c8370; --ink-faint: #c6ac96;
+    --btn-grad: linear-gradient(45deg,#ffdca6,#ffad8f); --btn-shadow: 0 4px 0 #e6b48e;
+    --chip-bg: #fff2df; --chip-border: #e8cba9; --chip-got: #ff9a76;
+    --ghost-bg: #fff2df; --ghost-border: #e8cba9;
+    --hud-ink: #fffdf6; --hud-stroke: #6b5442; --hud-stroke-w: 2px;
+    --hud-shadow: 0 3px 0 #6b5442; --badge: #c97a55; --turn: #4f9e78;
+    --toast-bg: rgba(107,84,66,.92); --ach-bg: #fff4e5; --ach-got: #ffe9d4;
+  }
+  body.neon {
+    --panel-bg: rgba(10,10,26,.9); --panel-border: 1px solid rgba(255,255,255,.12);
+    --ink: #ffffff; --ink-soft: #9aa; --ink-faint: #667;
+    --btn-grad: linear-gradient(45deg,#ff00cc,#3333ff); --btn-shadow: 0 0 20px rgba(51,51,255,.4);
+    --chip-bg: rgba(255,255,255,.1); --chip-border: rgba(255,255,255,.2); --chip-got: #7dffc8;
+    --ghost-bg: rgba(255,255,255,.08); --ghost-border: rgba(255,255,255,.25);
+    --hud-ink: #ffffff; --hud-stroke: transparent; --hud-stroke-w: 0;
+    --hud-shadow: 0 0 18px rgba(160,120,255,.8); --badge: #ffd700; --turn: #7dffc8;
+    --toast-bg: rgba(0,0,0,.75); --ach-bg: rgba(255,255,255,.05); --ach-got: rgba(125,255,200,.08);
+  }
+
+  /* 渐变天幕 + 纸纹 */
+  .bgLayer { position: fixed; inset: 0; z-index: 0; transition: opacity 1.6s ease; }
+  #bgA { background: linear-gradient(180deg, #fff7ec, #ffe9d5, #ffd2bd); }
+  #bgB { opacity: 0; }
+  #paper { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .55;
+           background-image: radial-gradient(rgba(107,84,66,.13) 1px, transparent 1px); background-size: 7px 7px; }
+  body.neon #paper { opacity: 0; }
+  canvas#c { display: block; position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+  #scoreHud { text-align: center; color: var(--hud-ink); font-size: 2.8rem; font-weight: bold; margin-top: 14px;
+              -webkit-text-stroke: var(--hud-stroke-w) var(--hud-stroke); text-shadow: var(--hud-shadow); }
+  #modeBadge { text-align: center; color: var(--badge); font-size: .85rem; letter-spacing: 4px; margin-top: 2px; font-weight: bold; }
+  #turnBadge { text-align: center; color: var(--turn); font-size: .9rem; margin-top: 2px; font-weight: bold; }
+  #comboPop { position: absolute; top: 38%; left: 50%; transform: translate(-50%,0) scale(.6); white-space: nowrap; color: var(--ink); font-size: 1.35rem; font-weight: bold; opacity: 0; text-shadow: 0 2px 8px rgba(255,255,255,.9); }
+  #comboPop.on { animation: pop .9s ease-out forwards; }
+  @keyframes pop {
+    0% { opacity: 0; transform: translate(-50%,10px) scale(.6); }
+    25% { opacity: 1; transform: translate(-50%,0) scale(1.15); }
+    60% { opacity: 1; transform: translate(-50%,-6px) scale(1); }
+    100% { opacity: 0; transform: translate(-50%,-30px) scale(.9); }
+  }
+  #p2hud { position: absolute; top: 14px; width: 100%; display: none; justify-content: center; gap: 30px; color: var(--ink-soft); font-size: .9rem; }
+  #p2hud b { color: var(--ink); font-size: 1.1rem; }
+  .muteBtn { position: absolute; top: 16px; right: 16px; pointer-events: auto; background: var(--ghost-bg); border: 2px solid var(--ghost-border); color: var(--ink); font-size: 1.1rem; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; }
+
+  /* ---------- 面板 ---------- */
+  .panel { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: var(--panel-bg); padding: 22px 26px; border-radius: 24px; text-align: center; pointer-events: auto; backdrop-filter: blur(10px); border: var(--panel-border); max-height: 92vh; overflow-y: auto; width: min(92vw, 420px); z-index: 10; box-shadow: 0 10px 30px rgba(107,84,66,.18); }
+  .panel h1 { margin: 0 0 4px; color: var(--ink); font-size: 1.7rem; letter-spacing: 3px; }
+  .panel .sub { color: var(--ink-soft); font-size: .8rem; margin-bottom: 12px; }
+  .panel p { color: var(--ink-soft); margin: 6px 0; line-height: 1.5; font-size: .9rem; }
+  #mascot { width: 104px; height: 104px; display: block; margin: 0 auto 2px; border-radius: 50%; background: rgba(255,255,255,.55); border: 3px dashed var(--chip-border); }
+  button.big { display: block; width: 100%; margin: 9px 0; padding: 12px; background: var(--btn-grad); border: none; color: var(--ink); font-size: 1rem; border-radius: 26px; cursor: pointer; letter-spacing: 2px; font-weight: bold; box-shadow: var(--btn-shadow); }
+  body.neon button.big { color: #fff; }
+  button.big:active { transform: translateY(2px); box-shadow: none; }
+  button.ghost { background: var(--ghost-bg); border: 2px solid var(--ghost-border); color: var(--ink); padding: 8px 16px; border-radius: 18px; cursor: pointer; margin: 4px; font-size: .85rem; }
+  .chip { display: inline-flex; align-items: center; gap: 3px; margin: 3px; padding: 5px 12px; border-radius: 16px; background: var(--chip-bg); border: 2px solid var(--chip-border); color: var(--ink); font-size: .78rem; cursor: pointer; }
+  .chip.active { border-color: var(--chip-got); color: var(--chip-got); font-weight: bold; }
+  .chip.locked { opacity: .45; cursor: default; }
+  .chip.got { border-color: var(--chip-got); color: var(--chip-got); }
+  .chip.dex img { width: 26px; height: 26px; vertical-align: middle; }
+  #skinRow { margin: 8px 0 2px; }
+  .secTitle { color: var(--ink-faint); font-size: .75rem; letter-spacing: 3px; margin: 13px 0 6px; font-weight: bold; }
+  #achGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; text-align: left; }
+  .ach { background: var(--ach-bg); border-radius: 10px; padding: 7px 9px; font-size: .74rem; color: var(--ink-soft); }
+  .ach.got { color: var(--ink); background: var(--ach-got); }
+  .ach span { color: var(--ink-faint); font-size: .68rem; }
+
+  #newRecord { display: none; background: linear-gradient(45deg,#ffd700,#ff8a00); color: #5b3a20; font-weight: bold; padding: 4px 14px; border-radius: 12px; font-size: .8rem; }
+  #overScore { color: var(--ink); font-size: 2.4rem; font-weight: bold; text-shadow: var(--hud-shadow); }
+  #unlockedChips { margin: 6px 0; }
+  #posterImg { display: none; width: 100%; border-radius: 14px; margin: 10px 0; border: 2px solid var(--chip-border); }
+  #albumList { max-height: 50vh; overflow-y: auto; }
+  .albumItem img { width: 100%; border-radius: 12px; cursor: pointer; border: 2px solid var(--chip-border); }
+  .albumItem p { font-size: .75rem; }
+
+  #toast { position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%); background: var(--toast-bg); color: #fff; padding: 9px 22px; border-radius: 20px; font-size: .9rem; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 20; white-space: nowrap; }
+  #toast.on { opacity: 1; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body class="cozy">
+
+<div id="bgA" class="bgLayer"></div>
+<div id="bgB" class="bgLayer"></div>
+<div id="paper"></div>
+
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div id="p2hud">
+    <span>玩家1 <b id="p1v">0</b></span>
+    <span>玩家2 <b id="p2v">0</b></span>
+  </div>
+  <div id="scoreHud">0</div>
+  <div id="modeBadge"></div>
+  <div id="turnBadge"></div>
+  <div id="comboPop"></div>
+  <button class="muteBtn" id="btnMuteHud">🔊</button>
+</div>
+
+<div id="toast"></div>
+
+<div id="startPanel" class="panel hidden">
+  <img id="mascot" alt="汤圆">
+  <h1>萌宠公寓 · 叠叠塔</h1>
+  <div class="sub">点一下放一层楼 · 每 10 层有萌宠入住 🐾</div>
+  <p id="bestLine">最高分：0</p>
+  <p id="dailyLine">今日挑战最佳：未挑战</p>
+  <button class="big" id="btnClassic">🏠 经典模式</button>
+  <button class="big" id="btnDaily">📅 每日挑战</button>
+  <button class="big" id="btnPerfect">✨ 完美模式（只许完美）</button>
+  <button class="big" id="btn2p">👯 双人对战（轮流放置）</button>
+  <div class="secTitle">塔身配色</div>
+  <div id="skinRow"></div>
+  <div class="secTitle">动物住户 · 图鉴</div>
+  <div id="dexRow"></div>
+  <button class="ghost" id="btnAlbum">🖼️ 我的塔 · 相册</button>
+  <button class="ghost" id="btnMute">🔊 音效</button>
+  <button class="ghost" id="btnStyle">🌙 切换霓虹夜</button>
+  <div class="secTitle">成就</div>
+  <div id="achGrid"></div>
+</div>
+
+<div id="revivePanel" class="panel hidden">
+  <h1>复活机会！</h1>
+  <p>你收集到了复活层，<br>要用它原地复活吗？</p>
+  <button class="big" id="btnRevive">💗 立即复活</button>
+  <button class="ghost" id="btnNoRevive">放弃</button>
+</div>
+
+<div id="overPanel" class="panel hidden">
+  <h1 id="overTitle">GAME OVER</h1>
+  <div style="margin:8px 0"><span id="newRecord">🏆 新纪录！</span></div>
+  <div id="overScore">0</div>
+  <p id="overSub"></p>
+  <div id="unlockedChips"></div>
+  <img id="posterImg" alt="成绩海报">
+  <button class="big" id="btnRestart">再来一局</button>
+  <button class="ghost" id="btnPoster">📥 下载成绩海报</button>
+  <button class="ghost" id="btnAlbum2" onclick="document.getElementById('btnAlbum').click()">🖼️ 我的塔</button>
+  <button class="ghost" id="btnMenu">返回菜单</button>
+</div>
+
+<div id="albumModal" class="panel hidden">
+  <h1>我的塔</h1>
+  <div id="albumList"></div>
+  <button class="ghost" id="albumClose">关闭</button>
+</div>
+
+<script src="js/vendor/three.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/platform.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/animals.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

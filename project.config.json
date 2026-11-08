@@ -1,0 +1,12 @@
+{
+  "description": "萌宠公寓·叠叠塔 微信小游戏（治愈手绘）",
+  "appid": "touristappid",
+  "compileType": "game",
+  "projectname": "neon-tower",
+  "setting": {
+    "es6": true,
+    "minified": true,
+    "packNpmManually": false
+  },
+  "libVersion": "latest"
+}

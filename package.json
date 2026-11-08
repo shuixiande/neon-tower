@@ -1,0 +1,8 @@
+{
+  "name": "neon-tower-minigame",
+  "version": "1.0.0",
+  "description": "萌宠公寓·叠叠塔 微信小游戏（与 Web 版共用 js/ 内核）",
+  "dependencies": {
+    "threejs-miniprogram": "^0.0.8"
+  }
+}

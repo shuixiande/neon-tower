@@ -1,0 +1,8 @@
+shot-*.png
+scripts/
+/game.js
+/game.json
+project.config.json
+node_modules/
+.vercel/
+.git/
